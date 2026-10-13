@@ -20,13 +20,26 @@ public struct PlateDesign: Codable, Equatable, Sendable {
     public var margin = 4.0
     public var offsetX = 10.0
     public var offsetY = 30.0
-    public var powerPercent = 10.0
-    public var speed = 1500.0
+    public var powerPercent = 30.0
+    public var speed = 2000.0
     public var passes = 1
     public var scanInterval = 0.1
+    // Optional encoded field keeps existing version-1 design files readable.
+    public var outlineSettings: OutlineSettings? = OutlineSettings()
+    public var outline: OutlineSettings {
+        get { outlineSettings ?? OutlineSettings() }
+        set { outlineSettings = newValue }
+    }
     public init() {}
+    public func validatePlacement() throws {
+        guard offsetX.isFinite, offsetY.isFinite, (0...20).contains(offsetX), (0...60).contains(offsetY) else {
+            throw PlateError("The 80 × 40 mm plate must fit inside the 100 × 100 mm workspace.")
+        }
+    }
     public func validate() throws {
         guard version == 1 else { throw PlateError("Unsupported design version.") }
+        try validatePlacement()
+        try outline.validate()
         for text in [presenter, title1, date] {
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw PlateError("Enter a presenter, title and date.") }
         }
@@ -39,5 +52,16 @@ public struct PlateDesign: Codable, Equatable, Sendable {
         let design = try JSONDecoder().decode(PlateDesign.self, from: data)
         try design.validate()
         return design
+    }
+}
+
+public struct OutlineSettings: Codable, Equatable, Sendable {
+    public var powerPercent = 10.0
+    public var speed = 2000.0
+    public init() {}
+    public func validate() throws {
+        guard powerPercent.isFinite, (0.1...100).contains(powerPercent), speed.isFinite, (50...12000).contains(speed) else {
+            throw PlateError("Outline power must be 0.1–100% and speed 50–12,000 mm/min.")
+        }
     }
 }

@@ -26,7 +26,7 @@ The script creates a locally ad-hoc-signed app. It is not notarized for distribu
 2. Enter the presenter, title, optional second title line and date.
 3. Choose a font and adjust sizes, margins and spacing. The preview uses actual glyph outlines; long text reports overflow rather than shrinking silently.
 4. Click **Generate Preview** and toggle **Engraving paths** to see the filled scan strokes.
-5. Click **Run Simulation**. Pause, resume and stop are available.
+5. Click **Run Simulation**. Pause, resume and stop are available. **Plate outline** previews the boundary; **Mark Plate Outline** simulates a four-edge marking job.
 6. Use **Save** and **Open** for JSON design files. Files contain design/settings only, not connection permissions or commissioned origin state.
 
 The simulation acknowledges commands; it does not model laser physics or actual motion timing. Its completion proves the software path, not real-world engraving quality. The displayed time estimate is rough and excludes acceleration and controller buffering.
@@ -42,6 +42,14 @@ The simulation acknowledges commands; it does not model laser physics or actual 
 7. Generate a new preview, select test settings, confirm the scrap-material test and explicitly choose **Engrave Plate**.
 
 Coordinate commissioning is essential: generated moves use the controller's current work coordinate system. This first version does not provide homing, jogging, alarm unlocking or automatic coordinate setup. If the controller's coordinate range differs from the assumed positive workspace, do not start; establish a verified work origin using the manufacturer's supported workflow first.
+
+## Mark a placement guide on the backing board
+
+After verifying coordinates with **Frame — Laser Off**, remove the metal plate and use **Mark Plate Outline** to engrave one 80 × 40 mm rectangle on a laser-suitable backing board. In USB mode, a confirmation identifies that the laser will fire and shows the outline settings. This uses the same lower-left X/Y position as text engraving.
+
+Outline power/speed have separate controls under **Board outline** (initially 10%, 2,000 mm/min, one pass; untested). They do not change the text engraving settings. Test these values for your board material rather than treating them as a calibrated wood preset. Keep the board, machine and coordinate origin fixed afterward; place each plate inside the guide. Refocus on the top of the metal plate before engraving it. If anything moves or the machine loses its coordinate reference, verify alignment again.
+
+New text designs now start at **30% power, 2,000 mm/min, one pass, 0.10 mm spacing**. These are experimental painted-metal starting settings. Existing saved designs retain their own power/speed settings; older files without outline settings load the new separate outline defaults.
 
 ## First physical test
 

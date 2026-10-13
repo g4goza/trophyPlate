@@ -17,7 +17,7 @@ final class EngravingTests: XCTestCase {
             if command.hasPrefix("G1 ") { XCTAssertEqual(mode,"G94"); break }
         }
         XCTAssertTrue(job.lines.filter { $0.hasPrefix("G0 ") }.allSatisfy { $0.hasSuffix("S0") })
-        XCTAssertTrue(job.lines.contains { $0.hasPrefix("G1 ") && $0.contains("S100.000") })
+        XCTAssertTrue(job.lines.contains { $0.hasPrefix("G1 ") && $0.contains("S300.000") })
     }
     func testRasterMatchesVisibleGlyphPositions() throws {
         var d = PlateDesign(); d.title2 = "A Shared Future"

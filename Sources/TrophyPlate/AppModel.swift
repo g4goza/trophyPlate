@@ -2,6 +2,8 @@ import AppKit
 import SwiftUI
 import TrophyPlateCore
 
+enum PlateAction { case engrave, frame, markOutline }
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published var design = PlateDesign() { didSet { job = nil; originConfirmed = false; materialConfirmed = false } }
@@ -16,6 +18,7 @@ final class AppModel: ObservableObject {
     @Published var originConfirmed = false
     @Published var materialConfirmed = false
     @Published var showPaths = false
+    @Published var showOutline = false
     @Published var message = "Simulation mode — connect the simulator to begin."
     @Published var console = ""
     @Published var phase: JobPhase = .ready
@@ -31,7 +34,14 @@ final class AppModel: ObservableObject {
     }
     var coordinatesAvailable: Bool { info?.workOffset?.count == 3 && info?.workOffset?.allSatisfy(\.isFinite) == true }
     var canStart: Bool { connected && !connecting && !busy && !generating && job != nil && (simulation || (coordinatesAvailable && originConfirmed && materialConfirmed)) }
-    var canFrame: Bool { connected && !busy && !generating && layoutError == nil && (simulation || (coordinatesAvailable && originConfirmed)) }
+    var placementError: String? {
+        do { try design.validatePlacement(); return nil } catch { return error.localizedDescription }
+    }
+    var outlineError: String? {
+        do { try design.validatePlacement(); try design.outline.validate(); return nil } catch { return error.localizedDescription }
+    }
+    var canFrame: Bool { connected && !connecting && !busy && !generating && placementError == nil && (simulation || (coordinatesAvailable && originConfirmed)) }
+    var canMarkOutline: Bool { canFrame && outlineError == nil }
     func log(_ text: String) {
         console += text+"\n"
         if console.count > 20000 { console = String(console.suffix(15000)) }
@@ -87,22 +97,34 @@ final class AppModel: ObservableObject {
             generating = false
         }
     }
-    func start(frame: Bool = false) {
-        guard let runner, frame ? canFrame:canStart else { return }
-        let lines: [String]
-        let seconds: Double
-        if frame {
-            let x = design.offsetX, y = design.offsetY
-            func n(_ value: Double) -> String { String(format:"%.3f",locale:Locale(identifier:"en_US_POSIX"),value) }
-            lines = ["G21","G90","M5","G0 S0","G0 X\(n(x)) Y\(n(y)) S0","G0 X\(n(x+80)) Y\(n(y)) S0","G0 X\(n(x+80)) Y\(n(y+40)) S0","G0 X\(n(x)) Y\(n(y+40)) S0","G0 X\(n(x)) Y\(n(y)) S0","M5"]
-            seconds = 300
-        } else {
-            guard let job else { return }; lines = job.lines; seconds = max(300,job.estimatedSeconds*4+120)
+    func start(_ action: PlateAction = .engrave) {
+        let allowed: Bool
+        switch action {
+        case .engrave: allowed = canStart
+        case .frame: allowed = canFrame
+        case .markOutline: allowed = canMarkOutline
         }
+        guard let runner, allowed else { return }
+        let selectedJob: EngravingJob
+        do {
+            switch action {
+            case .engrave:
+                guard let job else { return }; selectedJob = job
+            case .frame, .markOutline:
+                selectedJob = try PlacementJob.generate(design:design,mode:action == .frame ? .laserOff:.mark,powerMaximum:info?.powerMaximum ?? 1000)
+                showOutline = true
+            }
+        } catch { message = error.localizedDescription; return }
+        let lines = selectedJob.lines
+        let seconds = max(300,selectedJob.estimatedSeconds*4+120)
         busy = true; phase = .ready; accepted = 0; total = lines.count
-        message = frame ? "Tracing plate boundary with laser off…":(simulation ? "Simulating engraving…":"Engraving…")
+        switch action {
+        case .frame: message = "Tracing plate boundary with laser off…"
+        case .markOutline: message = simulation ? "Simulating board outline…":"Marking plate outline on board…"
+        case .engrave: message = simulation ? "Simulating engraving…":"Engraving…"
+        }
         let id = connectionID
-        let expectedPower = frame ? info?.powerMaximum:job?.powerMaximum
+        let expectedPower = selectedJob.powerMaximum
         let expectedOffset = simulation ? nil:info?.workOffset
         task = Task {
             do {
@@ -121,7 +143,11 @@ final class AppModel: ObservableObject {
                 let state = await runner.snapshot()
                 if id == connectionID {
                     phase = state.phase; accepted = state.acknowledged
-                    message = state.phase == .completed ? (simulation ? "Simulation complete.":"Controller reports Idle — job complete."):"Job stopped."
+                    if state.phase == .completed {
+                        if simulation { message = "Simulation complete." }
+                        else if action == .markOutline { message = "Outline job complete. Keep the board and coordinate origin fixed when placing plates." }
+                        else { message = "Controller reports Idle — job complete." }
+                    } else { message = "Job stopped." }
                 }
             } catch {
                 if id == connectionID {

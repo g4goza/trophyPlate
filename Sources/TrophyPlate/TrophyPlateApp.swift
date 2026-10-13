@@ -36,6 +36,7 @@ struct TrophyPlateApp: App {
     }
 }
 struct EditorView: View {
+    @State private var confirmOutline = false
     @ObservedObject var model: AppModel
     var body: some View {
         VStack(spacing:0) {
@@ -76,6 +77,11 @@ struct EditorView: View {
                             numeric("Scan interval (mm)",value:$model.design.scanInterval)
                             Text("Test on a scrap plate to establish clean coating removal. These are not calibrated material settings.").font(.caption).foregroundStyle(.secondary)
                         }
+                        Section("Board outline — separate test settings") {
+                            numeric("Outline power (%)",value:$model.design.outline.powerPercent)
+                            numeric("Outline speed (mm/min)",value:$model.design.outline.speed)
+                            Text("One pass around the 80 × 40 mm plate boundary. Test on your laser-suitable backing board; remove the metal plate first.").font(.caption).foregroundStyle(.secondary)
+                        }
                         Section("Placement in 100 × 100 mm workspace") {
                             numeric("Plate left X (mm)",value:$model.design.offsetX)
                             numeric("Plate bottom Y (mm)",value:$model.design.offsetY)
@@ -87,10 +93,11 @@ struct EditorView: View {
                     HStack {
                         Text("Plate preview").font(.headline)
                         Spacer()
-                        Toggle("Engraving paths",isOn:$model.showPaths).toggleStyle(.switch)
+                        Toggle("Paths",isOn:$model.showPaths).toggleStyle(.switch).disabled(model.showOutline)
+                        Toggle("Plate outline",isOn:$model.showOutline).toggleStyle(.switch)
                     }
-                    PlatePreview(design:model.design,job:model.job,showPaths:model.showPaths).frame(minHeight:200,maxHeight:.infinity)
-                    if let error = model.layoutError { Label(error,systemImage:"exclamationmark.triangle").foregroundStyle(.red).font(.callout) }
+                    PlatePreview(design:model.design,job:model.job,showPaths:model.showPaths,showOutline:model.showOutline).frame(minHeight:200,maxHeight:.infinity)
+                    if let error = model.showOutline ? model.outlineError:model.layoutError { Label(error,systemImage:"exclamationmark.triangle").foregroundStyle(.red).font(.callout) }
                     HStack {
                         Button(model.generating ? "Generating…":"Generate Preview") { model.generate() }.disabled(model.busy || model.connecting || model.generating || model.layoutError != nil)
                         if let job = model.job {
@@ -104,7 +111,19 @@ struct EditorView: View {
                         Text("Software Stop is best effort. Stay at the machine and use physical controls if needed.").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {
-                        Button("Frame — Laser Off") { model.start(frame:true) }.disabled(!model.canFrame)
+                        Button("Frame — Laser Off") { model.start(.frame) }.disabled(!model.canFrame)
+                        Button("Mark Plate Outline") {
+                            model.showOutline = true
+                            if model.simulation { model.start(.markOutline) } else { confirmOutline = true }
+                        }.disabled(!model.canMarkOutline)
+                    }
+                    .confirmationDialog("Mark the 80 × 40 mm outline on the backing board?",isPresented:$confirmOutline,titleVisibility:.visible) {
+                        Button("Mark Board — Laser On") { model.start(.markOutline) }
+                        Button("Cancel",role:.cancel) {}
+                    } message: {
+                        Text("Remove the metal plate first. The laser will fire at \(model.design.outline.powerPercent.formatted())% and \(model.design.outline.speed.formatted()) mm/min. Use a laser-suitable board and keep it and the coordinate origin fixed afterward.")
+                    }
+                    HStack {
                         Button(model.simulation ? "Run Simulation":"Engrave Plate") { model.start() }.buttonStyle(.borderedProminent).disabled(!model.canStart)
                         Button(model.phase == .paused ? "Resume":"Pause") { model.pauseOrResume() }.disabled(!model.busy || model.phase == .ready)
                         Button("Stop",role:.destructive) { model.stop() }.disabled(!model.busy)
@@ -151,6 +170,7 @@ struct PlatePreview: View {
     let design: PlateDesign
     let job: EngravingJob?
     let showPaths: Bool
+    let showOutline: Bool
     var body: some View {
         Canvas { context,size in
             let scale = min((size.width-48)/80,(size.height-48)/40)
@@ -163,7 +183,9 @@ struct PlatePreview: View {
             if design.margin.isFinite && design.margin > 0 && design.margin < 20 {
                 context.stroke(Path(CGRect(x:design.margin,y:design.margin,width:80-2*design.margin,height:40-2*design.margin)),with:.color(.white.opacity(0.2)),style:StrokeStyle(lineWidth:0.1,dash:[0.5,0.5]))
             }
-            if showPaths, let job {
+            if showOutline {
+                context.stroke(Path(plate),with:.color(.orange),lineWidth:0.15)
+            } else if showPaths, let job {
                 var path = Path()
                 for s in job.strokes.prefix(job.strokes.count/max(1,design.passes)) {
                     path.move(to:CGPoint(x:s.start.x-design.offsetX,y:s.start.y-design.offsetY))
