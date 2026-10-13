@@ -24,7 +24,8 @@ final class EngravingTests: XCTestCase {
         let layout = try TextLayout.make(d)
         let job = try EngravingJob.generate(design:d,powerMaximum:1000)
         let matching = job.strokes.filter { stroke in
-            let midpoint = CGPoint(x:(stroke.start.x+stroke.end.x)/2-d.offsetX,y:stroke.start.y-d.offsetY)
+            let midX = (Double(stroke.start.x)+Double(stroke.end.x))/2-d.offsetX
+            let midpoint = CGPoint(x:midX,y:Double(stroke.start.y)-d.offsetY)
             return layout.lines.contains { $0.path.contains(midpoint) }
         }.count
         // Pixel quantization can place very thin edge runs just outside the outline.
