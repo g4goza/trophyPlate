@@ -43,10 +43,12 @@ public struct PlateDesign: Codable, Equatable, Sendable {
         guard version == 1 else { throw PlateError("Unsupported design version.") }
         try validatePlacement()
         try outline.validate()
-        for text in [presenter, title1, date] {
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw PlateError("Enter a presenter, title and date.") }
+        let fields = [("Presenter",presenter,true),("Talk title",title1,true),("Second title line",title2,false),("Talk date",date,true)]
+        for (label,text,required) in fields {
+            if required && text.trimmingCharacters(in:.whitespacesAndNewlines).isEmpty { throw PlateError("\(label): enter text.") }
+            if text.unicodeScalars.contains(where:CharacterSet.newlines.contains) { throw PlateError("\(label): use a single line. Put a second title line in its separate field.") }
+            if text.count > 500 { throw PlateError("\(label): use at most 500 characters.") }
         }
-        guard [presenter,title1,title2,date].allSatisfy({ $0.count <= 500 && !$0.contains("\n") && !$0.contains("\r") }) else { throw PlateError("Each field must be a single line of at most 500 characters.") }
         guard !fontName.isEmpty, fontName.count <= 200 else { throw PlateError("Choose a font.") }
         let checks: [(Double, ClosedRange<Double>)] = [(nameSize,4...72),(titleSize,4...72),(dateSize,4...72),(lineSpacing,0...10),(margin,1...15),(offsetX,0...20),(offsetY,0...60),(powerPercent,0.1...100),(speed,50...12000),(scanInterval,0.05...0.5)]
         guard checks.allSatisfy({ $0.0.isFinite && $0.1.contains($0.0) }), (1...10).contains(passes) else { throw PlateError("Settings are outside the supported ranges.") }

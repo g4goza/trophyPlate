@@ -1,6 +1,6 @@
 # Validation
 
-Run `swift test --disable-sandbox` on macOS. Current suite: **40 tests**.
+Run `swift test --disable-sandbox` on macOS. Current suite: **43 tests**.
 
 | Test group | Count | Coverage |
 | --- | ---: | --- |
@@ -10,7 +10,7 @@ Run `swift test --disable-sandbox` on macOS. Current suite: **40 tests**.
 | MovementTests | 4 | Slow 2 mm X/Y and 10 mm X laser-off commands, work-position conversion, invalid/out-of-bounds rejection |
 | ProtocolTests | 6 | Fragmented CRLF/status parsing, settings and position-report unit validation, acknowledgment flow, pause/resume, disconnect/stop/error state |
 | RunnerTests | 6 | Simulated commissioning/execution, controller error, invalid port, changed power scale, changed work offset and changed machine position |
-| AppModelTests | 6 | Text/typography confirmation persistence, placement/material invalidation, required valid MPos, all physical actions reject changed position before accepting job lines, tested/custom setting classification |
+| AppModelTests | 9 | Text/typography confirmation persistence, placement/material invalidation, required valid MPos, all physical actions reject changed position before accepting job lines, tested/custom setting classification, boundary-newline cleanup and field-specific internal-line errors, automatic latest-edit preview, actionable blocked-job reasons |
 | JobIntegrationTests | 4 | Controlled pause with outstanding acknowledgment, stop queue suppression, acknowledgment timeout, draining until fresh Idle, delayed stale Idle rejection |
 
 Build/package: `./scripts/build-app.sh`. Validate metadata with `plutil -lint build/TrophyPlate.app/Contents/Info.plist`.
@@ -35,3 +35,9 @@ Physical pause/stop behavior, cable-loss handling and serial short writes under 
 The exact tested text settings are labeled separately from custom settings. Every physical action now checks fresh machine position against the displayed snapshot, including engraving, framing and board marking. App-level integration tests use the real runner with the simulator transport to reproduce a position reset; all three actions reject before accepting any job lines. Text edits preserve confirmations; coordinate edits, material-setting edits, loading and reconnection invalidate the relevant confirmation.
 
 Version 0.4.0 UI verification: restored the completed plate JSON (including X/Y=0, outline30%, text40%), verified tested/custom labels switch with a power edit, reconnected USB read-only and confirmed the unchanged final MPos [22.1,28.65,0] and WCO [0,0,0]. A fresh preview generated; reconnection correctly left both confirmations cleared. No additional movement or laser job was started after the update.
+
+## Editor usability update — October 14, 2026
+
+Version 0.5.0 cleans pasted boundary newlines (including CRLF), trims whitespace when leaving a field, and preserves spaces while typing. Internal newlines identify the invalid field. The outline overlays text and paths. Preview paths regenerate after a 350 ms editing pause with design/connection snapshot checks; this never starts a hardware job. Blocked preview, engraving and placement actions show reasons. A missing port no longer prevents disconnecting an existing session.
+
+UI checks used fictional sample text in Simulator mode: pasted CRLF cleanup, three/four-line auto-preview, simultaneous outline/text display, and field-specific validation. Actual screenshots are in docs/images and the illustrated user guide. No movement or laser commands were sent during these checks. Current user design was saved locally before restarting the app.

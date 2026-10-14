@@ -10,9 +10,20 @@ final class AppModel: ObservableObject {
         didSet {
             guard design != oldValue else { return }
             job = nil
+            schedulePreview()
+            message = layoutError ?? "Preview updating…"
             if design.offsetX != oldValue.offsetX || design.offsetY != oldValue.offsetY { originConfirmed = false }
             if design.powerPercent != oldValue.powerPercent || design.speed != oldValue.speed || design.passes != oldValue.passes || design.scanInterval != oldValue.scanInterval { materialConfirmed = false }
         }
+    }
+    func setText(_ value: String, for key: WritableKeyPath<PlateDesign,String>, finished: Bool = false) {
+        let whitespace = CharacterSet.whitespacesAndNewlines
+        let leading = value.unicodeScalars.prefix(while:whitespace.contains)
+        let trailing = value.unicodeScalars.reversed().prefix(while:whitespace.contains)
+        let boundaryBreak = leading.contains(where:CharacterSet.newlines.contains) || trailing.contains(where:CharacterSet.newlines.contains)
+        let clean = finished || boundaryBreak
+            ? value.trimmingCharacters(in:.whitespacesAndNewlines) : value
+        design[keyPath:key] = clean
     }
     @Published var job: EngravingJob?
     @Published var simulation = true
@@ -37,6 +48,42 @@ final class AppModel: ObservableObject {
         if simulation { return SimulatedTransport() }
         return try SerialTransport(path:port)
     }) { self.makeTransport = makeTransport }
+    private var previewTask: Task<Void,Never>?
+    func schedulePreview() {
+        previewTask?.cancel()
+        previewTask = Task { [weak self] in
+            do { try await Task.sleep(nanoseconds:350_000_000) } catch { return }
+            guard let self, !Task.isCancelled, self.layoutError == nil else { return }
+            self.generate()
+        }
+    }
+    var previewBlockReason: String? {
+        if busy { return "Wait for the current job to finish." }
+        if connecting { return "Wait for the controller connection." }
+        if generating { return "Updating preview…" }
+        return layoutError
+    }
+    var engravingBlockReason: String? {
+        if let reason = previewBlockReason { return reason }
+        if !connected { return "Connect the simulator or USB engraver." }
+        if job == nil { return "Wait for the preview or click Generate Preview." }
+        if !simulation {
+            if !coordinatesAvailable { return "Reconnect to obtain valid machine position and work offset." }
+            if !originConfirmed { return "Confirm coordinate origin, axis directions and plate placement." }
+            if !materialConfirmed { return "Confirm you have tested these settings on this plate material." }
+        }
+        return nil
+    }
+    var placementBlockReason: String? {
+        if busy { return "Wait for the current job to finish." }
+        if connecting { return "Wait for the controller connection." }
+        if generating { return "Updating preview…" }
+        if !connected { return "Connect the simulator or USB engraver." }
+        if let error = placementError { return error }
+        if !simulation && !coordinatesAvailable { return "Reconnect to obtain valid coordinates." }
+        if !simulation && !originConfirmed { return "Confirm coordinate origin, axis directions and plate placement." }
+        return nil
+    }
     private var runner: JobRunner?
     private var task: Task<Void,Never>?
     private var connectionID = UUID()
@@ -46,7 +93,7 @@ final class AppModel: ObservableObject {
     }
     var coordinatesAvailable: Bool { info?.workOffset?.count == 3 && info?.workOffset?.allSatisfy(\.isFinite) == true && info?.machinePosition?.count == 3 && info?.machinePosition?.allSatisfy(\.isFinite) == true }
     var canTestMovement: Bool { connected && !connecting && !busy && !generating && coordinatesAvailable && info?.machinePosition?.count == 3 && info?.machinePosition?.allSatisfy(\.isFinite) == true }
-    var canStart: Bool { connected && !connecting && !busy && !generating && job != nil && (simulation || (coordinatesAvailable && originConfirmed && materialConfirmed)) }
+    var canStart: Bool { engravingBlockReason == nil }
     var placementError: String? {
         do { try design.validatePlacement(); return nil } catch { return error.localizedDescription }
     }
@@ -87,6 +134,7 @@ final class AppModel: ObservableObject {
                 runner = nil; connected = false; message = error.localizedDescription; log(message)
             }
             connecting = false
+            schedulePreview()
         }
     }
     func disconnect() {
@@ -109,6 +157,7 @@ final class AppModel: ObservableObject {
                 if design == input && connectionID == id { job = result; message = "Preview ready: \(result.strokes.count) engraving strokes. Timing estimate excludes acceleration." }
             } catch { message = error.localizedDescription }
             generating = false
+            if design != input || connectionID != id { schedulePreview() }
         }
     }
     func start(_ action: PlateAction = .engrave) {

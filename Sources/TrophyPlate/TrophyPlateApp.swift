@@ -37,6 +37,7 @@ struct TrophyPlateApp: App {
 }
 struct EditorView: View {
     @State private var confirmOutline = false
+    @FocusState private var textFocus: String?
     @ObservedObject var model: AppModel
     var body: some View {
         VStack(spacing:0) {
@@ -55,10 +56,10 @@ struct EditorView: View {
                 ScrollView {
                     Form {
                         Section("Plate text") {
-                            TextField("Presenter",text:$model.design.presenter)
-                            TextField("Talk title",text:$model.design.title1)
-                            TextField("Second title line (optional)",text:$model.design.title2)
-                            TextField("Talk date",text:$model.design.date)
+                            TextField("Presenter",text:textBinding(\.presenter)).focused($textFocus,equals:"presenter")
+                            TextField("Talk title",text:textBinding(\.title1)).focused($textFocus,equals:"title1")
+                            TextField("Second title line (optional)",text:textBinding(\.title2)).focused($textFocus,equals:"title2")
+                            TextField("Talk date",text:textBinding(\.date)).focused($textFocus,equals:"date")
                         }
                         Section("Typography") {
                             Picker("Font",selection:$model.design.fontName) {
@@ -87,23 +88,24 @@ struct EditorView: View {
                             numeric("Plate bottom Y (mm)",value:$model.design.offsetY)
                             Text("Coordinates must be verified on your machine. No automatic homing.").font(.caption).foregroundStyle(.secondary)
                         }
-                    }.formStyle(.grouped).disabled(model.busy || model.generating)
+                    }.formStyle(.grouped).disabled(model.busy)
                 }.frame(minWidth:330,idealWidth:370,maxWidth:430)
                 VStack(alignment:.leading,spacing:14) {
                     HStack {
                         Text("Plate preview").font(.headline)
                         Spacer()
-                        Toggle("Paths",isOn:$model.showPaths).toggleStyle(.switch).disabled(model.showOutline)
+                        Toggle("Paths",isOn:$model.showPaths).toggleStyle(.switch)
                         Toggle("Plate outline",isOn:$model.showOutline).toggleStyle(.switch)
                     }
                     PlatePreview(design:model.design,job:model.job,showPaths:model.showPaths,showOutline:model.showOutline).frame(minHeight:200,maxHeight:.infinity)
-                    if let error = model.showOutline ? model.outlineError:model.layoutError { Label(error,systemImage:"exclamationmark.triangle").foregroundStyle(.red).font(.callout) }
+                    if let error = model.layoutError { Label(error,systemImage:"exclamationmark.triangle").foregroundStyle(.red).font(.callout) }
                     HStack {
-                        Button(model.generating ? "Generating…":"Generate Preview") { model.generate() }.disabled(model.busy || model.connecting || model.generating || model.layoutError != nil)
+                        Button(model.generating ? "Generating…":"Generate Preview") { model.generate() }.disabled(model.previewBlockReason != nil).help(model.previewBlockReason ?? "Regenerate engraving paths")
                         if let job = model.job {
                             Text("\(job.strokes.count) strokes • about \(Int(ceil(job.estimatedSeconds/60))) min").font(.caption).foregroundStyle(.secondary)
                         }
                     }
+                    if let reason = model.previewBlockReason, model.layoutError == nil { Text(reason).font(.caption).foregroundStyle(.secondary) }
                     connection
                     HStack {
                         Text("Laser-off check:").font(.caption)
@@ -135,6 +137,9 @@ struct EditorView: View {
                         Button(model.phase == .paused ? "Resume":"Pause") { model.pauseOrResume() }.disabled(!model.busy || model.phase == .ready)
                         Button("Stop",role:.destructive) { model.stop() }.disabled(!model.busy)
                     }
+                    if let reason = model.engravingBlockReason { Text(reason).font(.caption).foregroundStyle(.secondary) }
+                    if let reason = model.placementBlockReason, reason != model.engravingBlockReason { Text("Frame / outline: " + reason).font(.caption).foregroundStyle(.secondary) }
+                    if let error = model.outlineError, error != model.placementError { Text("Board outline: " + error).font(.caption).foregroundStyle(.secondary) }
                     if model.busy {
                         ProgressView(value:Double(model.accepted),total:Double(max(1,model.total)))
                         Text("\(model.accepted)/\(model.total) lines accepted • \(model.phase.rawValue). Accepted lines may still be executing.").font(.caption)
@@ -145,7 +150,14 @@ struct EditorView: View {
                     }
                 }.padding().frame(minWidth:580)
             }
+        }.onAppear { model.schedulePreview() }
+        .onChange(of:textFocus) { previous, _ in
+            let fields: [String:WritableKeyPath<PlateDesign,String>] = ["presenter":\.presenter,"title1":\.title1,"title2":\.title2,"date":\.date]
+            if let previous, let key = fields[previous] { model.setText(model.design[keyPath:key],for:key,finished:true) }
         }
+    }
+    private func textBinding(_ key: WritableKeyPath<PlateDesign,String>) -> Binding<String> {
+        Binding(get:{ model.design[keyPath:key] },set:{ model.setText($0,for:key) })
     }
     private func numeric(_ label: String,value: Binding<Double>) -> some View {
         TextField(label,value:value,format:.number.precision(.fractionLength(0...2))).textFieldStyle(.roundedBorder)
@@ -167,7 +179,7 @@ struct EditorView: View {
                 Spacer()
                 Button(model.connecting ? "Connecting…":(model.connected ? "Disconnect":"Connect")) {
                     if model.connected { model.disconnect() } else { model.connect() }
-                }.disabled(model.busy || model.connecting || model.generating || (!model.simulation && model.selectedPort.isEmpty))
+                }.disabled(model.busy || model.connecting || model.generating || (!model.connected && !model.simulation && model.selectedPort.isEmpty))
             }
             if let info = model.info { Text("\(info.identity) • S max \(Int(info.powerMaximum ?? 0)) • \(info.status)").font(.caption).foregroundStyle(.secondary) }
         }
@@ -192,7 +204,8 @@ struct PlatePreview: View {
             }
             if showOutline {
                 context.stroke(Path(plate),with:.color(.orange),lineWidth:0.15)
-            } else if showPaths, let job {
+            }
+            if showPaths, let job {
                 var path = Path()
                 for s in job.strokes.prefix(job.strokes.count/max(1,design.passes)) {
                     path.move(to:CGPoint(x:s.start.x-design.offsetX,y:s.start.y-design.offsetY))

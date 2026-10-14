@@ -4,6 +4,14 @@ A native macOS app for designing **80 × 40 mm trophy plates** with centered pre
 
 **Status: USB connection, axis directions, laser-off framing, board marking and coated-metal engraving have been tested on the owner’s Genmitsu Kiosk.** New designs use the owner’s tested 40% settings; other materials and focus setups need their own tests. Physical pause/stop and cable-loss acceptance remain pending.
 
+## User guide
+
+Start with the illustrated [user guide](docs/USER-GUIDE.md): installation, three/four-line examples, USB setup, placement guide, material settings, and troubleshooting.
+
+![TrophyPlate editor with a centered three-line plate and outline overlay](docs/images/editor-three-lines.png)
+
+*Actual app screenshot; fictional sample text and digital plate preview, not a photograph of a finished engraving.*
+
 ## Requirements and build
 
 - macOS 14 or later; developed on an Apple Silicon Mac.
@@ -25,7 +33,7 @@ The script creates a locally ad-hoc-signed app. It is not notarized for distribu
 1. Leave **Simulator** selected and click **Connect**.
 2. Enter the presenter, title, optional second title line and date.
 3. Choose a font and adjust sizes, margins and spacing. The preview uses actual glyph outlines; long text reports overflow rather than shrinking silently.
-4. Click **Generate Preview** and toggle **Engraving paths** to see the filled scan strokes.
+4. The preview updates automatically after editing pauses; **Generate Preview** also refreshes it manually. Toggle **Engraving paths** to see the filled scan strokes.
 5. Click **Run Simulation**. Pause, resume and stop are available. **Plate outline** previews the boundary; **Mark Plate Outline** simulates a four-edge marking job.
 6. Use **Save** and **Open** for JSON design files. Files contain design/settings only, not connection permissions or commissioned origin state.
 
