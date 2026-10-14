@@ -3,7 +3,7 @@ import XCTest
 final class PlacementTests: XCTestCase {
     func testApprovedTextDefaults() {
         let d = PlateDesign()
-        XCTAssertEqual(d.powerPercent,30)
+        XCTAssertEqual(d.powerPercent,40)
         XCTAssertEqual(d.speed,2000)
         XCTAssertEqual(d.passes,1)
         XCTAssertEqual(d.scanInterval,0.1)

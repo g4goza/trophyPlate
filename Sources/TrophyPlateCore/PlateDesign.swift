@@ -20,7 +20,7 @@ public struct PlateDesign: Codable, Equatable, Sendable {
     public var margin = 4.0
     public var offsetX = 10.0
     public var offsetY = 30.0
-    public var powerPercent = 30.0
+    public var powerPercent = 40.0
     public var speed = 2000.0
     public var passes = 1
     public var scanInterval = 0.1

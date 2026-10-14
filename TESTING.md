@@ -16,15 +16,15 @@ Build/package: `./scripts/build-app.sh`. Validate metadata with `plutil -lint bu
 
 UI inspection on the development Mac exercised four-line editing, preview generation, simulator connection, pause, stop and save/open dialogs. A flipped raster preview was caught visually and fixed with a geometric regression test. Save/open restored the original presenter and four-line text after editing. The new Mark Plate Outline button and orange boundary preview were exercised through a completed simulator job; the fresh editor showed the approved 30% / 2,000 mm/min / one-pass defaults. USB-mode marking confirmation was reviewed statically; no physical marking was performed. The GitHub workflow builds/tests on macOS.
 
-## Pending hardware acceptance
+## Physical commissioning — October 13, 2026
 
-- Further USB/firmware validation beyond initial read-only commissioning.
+- USB connected to firmware 1.3a.20211103 with $30=1000, $32=1, $13=0 and Idle status.
+- Owner confirmed X+ moves right and Y+ moves toward the back. The 80 × 40 mm laser-off frame returned to its plate corner.
+- Power cycling left the head physically in place but reset MPos to zero. We reconnected, cleared prior confirmation, used the current head position as the new plate corner (X/Y plate offsets both zero), and re-framed before laser operation. Always re-establish placement after a power cycle.
+- Pine placement guide became usable after cumulative retraces at 10%, 20% and 30%, all 2,000 mm/min. This is not evidence for a single-pass pine preset.
+- Three-line coated-metal tests at 30% and 40%, 2,000 mm/min, one pass and 0.10 mm interval completed without reported errors. The owner chose 40% for subsequent plates. A subsequent production plate completed with the same settings; physical finish inspection remains the owner's check.
+- The default for new designs is now 40%; existing saved settings remain unchanged.
 
-Initial physical USB commissioning on October 13, 2026 succeeded: firmware 1.3a.20211103, $30=1000, $32=1, Idle, initial MPos/WCO both zero. A laser-off X+2 mm command completed with controller-reported MPos [2,0,0] and Idle; physical direction confirmation is pending. $13=0 was read and verified. No laser-on engraving has been tested.
+## Remaining hardware acceptance
 
-- Machine origin, axis directions, work coordinate offsets and laser-off boundary framing.
-- Actual engraving orientation/alignment and coating removal on 80 × 40 mm blanks.
-- Speed/power calibration and physical pause/stop behavior.
-- Physical cable disconnect behavior, short writes and suspended serial I/O under load.
-
-Simulation does not model the physics, real serial driver or hardware timing.
+Physical pause/stop behavior, cable-loss handling and serial short writes under load still require controlled testing. Material results apply to the owner's tested blanks and focus setup; simulation does not model laser physics or driver timing.

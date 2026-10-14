@@ -50,7 +50,7 @@ After verifying coordinates with **Frame — Laser Off**, remove the metal plate
 
 Outline power/speed have separate controls under **Board outline** (initially 10%, 2,000 mm/min, one pass; untested). They do not change the text engraving settings. Test these values for your board material rather than treating them as a calibrated wood preset. Keep the board, machine and coordinate origin fixed afterward; place each plate inside the guide. Refocus on the top of the metal plate before engraving it. If anything moves or the machine loses its coordinate reference, verify alignment again.
 
-New text designs now start at **30% power, 2,000 mm/min, one pass, 0.10 mm spacing**. These are experimental painted-metal starting settings. Existing saved designs retain their own power/speed settings; older files without outline settings load the new separate outline defaults.
+New text designs now start at **40% power, 2,000 mm/min, one pass, 0.10 mm spacing**. The owner selected 40% after physical tests on their coated-metal blanks. Treat this as a starting setting for other coatings/materials. Existing saved designs retain their own power/speed settings; older files without outline settings load the new separate outline defaults.
 
 ## First physical test
 
