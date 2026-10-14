@@ -9,7 +9,7 @@ final class ProtocolTests: XCTestCase {
     }
     func testControllerValidation() throws {
         var info = ControllerInfo()
-        info.consume("[VER:1.1h:Kiosk]"); info.consume("$30=1000"); info.consume("$32=1"); info.consume("<Idle|MPos:0,0,0|WCO:0,0,0>")
+        info.consume("$13=0"); info.consume("[VER:1.1h:Kiosk]"); info.consume("$30=1000"); info.consume("$32=1"); info.consume("<Idle|MPos:0,0,0|WCO:0,0,0>")
         XCTAssertEqual(try info.validatedPowerMaximum(),1000)
         info.consume("$32=0")
         XCTAssertThrowsError(try info.validatedPowerMaximum())
@@ -37,5 +37,16 @@ final class ProtocolTests: XCTestCase {
         XCTAssertEqual(s.phase,.stopped); XCTAssertFalse(s.canSendNextLine)
         s = JobStateMachine(lineCount:10); s.start(); s.fail("Timed out")
         XCTAssertEqual(s.phase,.failed)
+    }
+}
+extension ProtocolTests {
+    func testInchesOrUnknownReportingUnitsBlockMotion() throws {
+        var info = ControllerInfo()
+        for line in ["[VER:1.1h:TEST]","$30=1000","$32=1","<Idle|MPos:0,0,0|WCO:0,0,0>"] { info.consume(line) }
+        XCTAssertThrowsError(try info.validatedPowerMaximum())
+        info.consume("$13=1")
+        XCTAssertThrowsError(try info.validatedPowerMaximum())
+        info.consume("$13=0")
+        XCTAssertEqual(try info.validatedPowerMaximum(),1000)
     }
 }

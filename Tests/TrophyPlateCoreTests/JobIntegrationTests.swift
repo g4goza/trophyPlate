@@ -11,7 +11,7 @@ private actor ControlledTransport: LaserTransport {
         commands.append(command)
         switch command {
         case "$I\n": buffer += "[VER:1.1h:TEST]\nok\n"
-        case "$$\n": buffer += "$30=1000\n$32=1\nok\n"
+        case "$$\n": buffer += "$13=0\n$30=1000\n$32=1\nok\n"
         case "?": buffer += commands.contains("G21\n") && !allowIdle ? "<Run|MPos:0,0,0|WCO:0,0,0>\n":"<Idle|MPos:0,0,0|WCO:0,0,0>\n"
         default: break
         }
@@ -82,7 +82,7 @@ private actor StaleIdleTransport: LaserTransport {
     func write(_ command: String) async throws {
         switch command {
         case "$I\n": buffer += "[VER:1.1h:TEST]\nok\n"
-        case "$$\n": buffer += "$30=1000\n$32=1\nok\n"
+        case "$$\n": buffer += "$13=0\n$30=1000\n$32=1\nok\n"
         case "G21\n": jobSent = true; buffer += "ok\n"
         case "?":
             if jobSent {

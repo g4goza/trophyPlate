@@ -45,7 +45,7 @@ public actor JobRunner {
         _ = try info.validatedPowerMaximum()
         return info
     }
-    public func run(lines: [String], expectedPowerMaximum: Double? = nil, expectedWorkOffset: [Double]? = nil, acknowledgmentTimeout: TimeInterval = 120, completionTimeout: TimeInterval = 3600, event: @escaping @Sendable (RunnerEvent) -> Void) async throws {
+    public func run(lines: [String], expectedPowerMaximum: Double? = nil, expectedWorkOffset: [Double]? = nil, expectedMachinePosition: [Double]? = nil, acknowledgmentTimeout: TimeInterval = 120, completionTimeout: TimeInterval = 3600, event: @escaping @Sendable (RunnerEvent) -> Void) async throws {
         guard connected, !state.isActive, !lines.isEmpty else { throw PlateError("Cannot start this job.") }
         // Every run verifies fresh status and settings before issuing motion.
         let current = try await inspect()
@@ -57,6 +57,12 @@ public actor JobRunner {
             guard expectedWorkOffset.count == 3, let actual = current.workOffset, actual.count == 3,
                   zip(actual,expectedWorkOffset).allSatisfy({ $0.0.isFinite && $0.1.isFinite && abs($0.0-$0.1) < 0.000001 }) else {
                 throw PlateError("Controller work offset changed. Reconnect and verify plate coordinates again.")
+            }
+        }
+        if let expectedMachinePosition {
+            guard expectedMachinePosition.count == 3, let actual = current.machinePosition, actual.count == 3,
+                  zip(actual,expectedMachinePosition).allSatisfy({ $0.0.isFinite && $0.1.isFinite && abs($0.0-$0.1) < 0.001 }) else {
+                throw PlateError("Controller position changed. Reconnect before the movement check.")
             }
         }
         state = JobStateMachine(lineCount:lines.count); state.start()

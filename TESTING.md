@@ -1,14 +1,15 @@
 # Validation
 
-Run `swift test --disable-sandbox` on macOS. Current suite: **28 tests**.
+Run `swift test --disable-sandbox` on macOS. Current suite: **33 tests**.
 
 | Test group | Count | Coverage |
 | --- | ---: | --- |
 | LayoutTests | 5 | 3/4 lines, visible centering, Unicode, unsupported glyph rejection, overflow, JSON round trip, invalid settings/schema |
 | EngravingTests | 4 | Workspace bounds, laser-off travel/completion, explicit G94, raster orientation, power/feed validation, alternating scan rows and passes |
 | PlacementTests | 5 | Approved text defaults, closed 80 × 40 mm rectangle, independent outline power, laser-off framing, bounds/numeric rejection, old-file compatibility |
-| ProtocolTests | 5 | Fragmented CRLF/status parsing, settings validation, acknowledgment flow, pause/resume, disconnect/stop/error state |
-| RunnerTests | 5 | Simulated commissioning/execution, controller error, invalid port, changed power scale and changed work offset |
+| MovementTests | 3 | Slow 2 mm X/Y laser-off commands, work-position conversion, invalid/out-of-bounds rejection |
+| ProtocolTests | 6 | Fragmented CRLF/status parsing, settings and position-report unit validation, acknowledgment flow, pause/resume, disconnect/stop/error state |
+| RunnerTests | 6 | Simulated commissioning/execution, controller error, invalid port, changed power scale, changed work offset and changed machine position |
 | JobIntegrationTests | 4 | Controlled pause with outstanding acknowledgment, stop queue suppression, acknowledgment timeout, draining until fresh Idle, delayed stale Idle rejection |
 
 Build/package: `./scripts/build-app.sh`. Validate metadata with `plutil -lint build/TrophyPlate.app/Contents/Info.plist`.
@@ -17,7 +18,10 @@ UI inspection on the development Mac exercised four-line editing, preview genera
 
 ## Pending hardware acceptance
 
-- USB serial configuration and controller firmware compatibility.
+- Further USB/firmware validation beyond initial read-only commissioning.
+
+Initial physical USB commissioning on October 13, 2026 succeeded: firmware 1.3a.20211103, $30=1000, $32=1, Idle, initial MPos/WCO both zero. A laser-off X+2 mm command completed with controller-reported MPos [2,0,0] and Idle; physical direction confirmation is pending. $13=0 was read and verified. No laser-on engraving has been tested.
+
 - Machine origin, axis directions, work coordinate offsets and laser-off boundary framing.
 - Actual engraving orientation/alignment and coating removal on 80 × 40 mm blanks.
 - Speed/power calibration and physical pause/stop behavior.

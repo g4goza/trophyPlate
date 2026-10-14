@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import TrophyPlateCore
 
-enum PlateAction { case engrave, frame, markOutline }
+enum PlateAction { case engrave, frame, markOutline, testX, testY }
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -33,6 +33,7 @@ final class AppModel: ObservableObject {
         do { _ = try TextLayout.make(design); return nil } catch { return error.localizedDescription }
     }
     var coordinatesAvailable: Bool { info?.workOffset?.count == 3 && info?.workOffset?.allSatisfy(\.isFinite) == true }
+    var canTestMovement: Bool { connected && !connecting && !busy && !generating && coordinatesAvailable && info?.machinePosition?.count == 3 && info?.machinePosition?.allSatisfy(\.isFinite) == true }
     var canStart: Bool { connected && !connecting && !busy && !generating && job != nil && (simulation || (coordinatesAvailable && originConfirmed && materialConfirmed)) }
     var placementError: String? {
         do { try design.validatePlacement(); return nil } catch { return error.localizedDescription }
@@ -68,6 +69,9 @@ final class AppModel: ObservableObject {
                 message = simulation ? "Simulator connected. No physical laser is controlled.":"USB controller ready. Verify coordinates before motion."
                 if !simulation && !coordinatesAvailable { message = "Connected, but no valid work offset was reported. Reconnect before commissioning motion." }
                 log("\(detected.identity)\n$30=\(detected.powerMaximum ?? 0), $32=\(detected.laserMode ? 1:0), status=\(detected.status)")
+                log("Position reports: \(detected.reportsInches == false ? "millimeters ($13=0)":"unverified")")
+                log("Machine position (MPos): \(detected.machinePosition.map { String(describing:$0) } ?? "not reported")")
+                log("Work offset (WCO): \(detected.workOffset.map { String(describing:$0) } ?? "not reported")")
             } catch {
                 if let runner { await runner.disconnect() }
                 runner = nil; connected = false; message = error.localizedDescription; log(message)
@@ -103,6 +107,7 @@ final class AppModel: ObservableObject {
         case .engrave: allowed = canStart
         case .frame: allowed = canFrame
         case .markOutline: allowed = canMarkOutline
+        case .testX, .testY: allowed = canTestMovement
         }
         guard let runner, allowed else { return }
         let selectedJob: EngravingJob
@@ -110,6 +115,9 @@ final class AppModel: ObservableObject {
             switch action {
             case .engrave:
                 guard let job else { return }; selectedJob = job
+            case .testX, .testY:
+                guard let position = info?.machinePosition, let offset = info?.workOffset else { return }
+                selectedJob = try MovementJob.generate(axis:action == .testX ? .x:.y,machinePosition:position,workOffset:offset,powerMaximum:info?.powerMaximum ?? 1000)
             case .frame, .markOutline:
                 selectedJob = try PlacementJob.generate(design:design,mode:action == .frame ? .laserOff:.mark,powerMaximum:info?.powerMaximum ?? 1000)
                 showOutline = true
@@ -119,6 +127,8 @@ final class AppModel: ObservableObject {
         let seconds = max(300,selectedJob.estimatedSeconds*4+120)
         busy = true; phase = .ready; accepted = 0; total = lines.count
         switch action {
+        case .testX: message = "Moving X +2 mm at 120 mm/min — laser off…"
+        case .testY: message = "Moving Y +2 mm at 120 mm/min — laser off…"
         case .frame: message = "Tracing plate boundary with laser off…"
         case .markOutline: message = simulation ? "Simulating board outline…":"Marking plate outline on board…"
         case .engrave: message = simulation ? "Simulating engraving…":"Engraving…"
@@ -126,9 +136,10 @@ final class AppModel: ObservableObject {
         let id = connectionID
         let expectedPower = selectedJob.powerMaximum
         let expectedOffset = simulation ? nil:info?.workOffset
+        let expectedPosition = action == .testX || action == .testY ? info?.machinePosition:nil
         task = Task {
             do {
-                try await runner.run(lines:lines,expectedPowerMaximum:expectedPower,expectedWorkOffset:expectedOffset,completionTimeout:seconds) { [weak self] event in
+                try await runner.run(lines:lines,expectedPowerMaximum:expectedPower,expectedWorkOffset:expectedOffset,expectedMachinePosition:expectedPosition,completionTimeout:seconds) { [weak self] event in
                     Task { @MainActor [weak self] in
                         guard let self, self.connectionID == id else { return }
                         switch event {
@@ -146,7 +157,12 @@ final class AppModel: ObservableObject {
                     if state.phase == .completed {
                         if simulation { message = "Simulation complete." }
                         else if action == .markOutline { message = "Outline job complete. Keep the board and coordinate origin fixed when placing plates." }
+                        else if action == .testX || action == .testY { message = "2 mm movement complete — laser off. Confirm the physical direction before continuing." }
                         else { message = "Controller reports Idle — job complete." }
+                        let refreshed = try await runner.inspect()
+                        guard id == connectionID else { return }
+                        info = refreshed
+                        log("After job — MPos: \(refreshed.machinePosition.map { String(describing:$0) } ?? "not reported"), WCO: \(refreshed.workOffset.map { String(describing:$0) } ?? "not reported")")
                     } else { message = "Job stopped." }
                 }
             } catch {

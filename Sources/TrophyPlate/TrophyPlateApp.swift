@@ -105,6 +105,12 @@ struct EditorView: View {
                         }
                     }
                     connection
+                    HStack {
+                        Text("Laser-off check:").font(.caption)
+                        Button("X +2 mm") { model.start(.testX) }.disabled(!model.canTestMovement)
+                        Button("Y +2 mm") { model.start(.testY) }.disabled(!model.canTestMovement)
+                    }
+                    Text("Clear 2 mm of travel before each check. X+ should move right; Y+ should move toward the back.").font(.caption).foregroundStyle(.secondary)
                     if !model.simulation {
                         Toggle("I verified the coordinate origin, axis directions and plate placement.",isOn:$model.originConfirmed)
                         Toggle("I will test these power/speed settings on scrap material.",isOn:$model.materialConfirmed)

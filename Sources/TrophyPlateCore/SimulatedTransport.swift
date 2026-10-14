@@ -13,7 +13,7 @@ public actor SimulatedTransport: LaserTransport {
         if command == "~" { held = false; return }
         if command == "\u{18}" { buffer = "Grbl 1.1h ['$' for help]\n"; held = false; return }
         if command.trimmingCharacters(in:.whitespacesAndNewlines) == "$I" { buffer += "[VER:1.1h:SIMULATOR]\nok\n"; return }
-        if command.trimmingCharacters(in:.whitespacesAndNewlines) == "$$" { buffer += "$30=1000\n$32=1\nok\n"; return }
+        if command.trimmingCharacters(in:.whitespacesAndNewlines) == "$$" { buffer += "$13=0\n$30=1000\n$32=1\nok\n"; return }
         if fault { buffer += "error:1\n"; fault = false } else { buffer += "ok\n" }
     }
     public func read() async throws -> String {

@@ -36,10 +36,11 @@ The simulation acknowledges commands; it does not model laser physics or actual 
 1. Use the Kiosk's **USB-PC** port, power adapter, and a working data cable. On the development Mac, a USB-A–to–USB-C cable established detection where C-to-C attempts did not. Accept the macOS accessory prompt.
 2. Close LightBurn, CutLabX and other controller applications.
 3. Choose **USB**, refresh the port list, select the device and **Connect**. Port names vary; `/dev/cu.usbserial-210` was previously detected on the owner's Mac.
-4. The app uses 115200 baud, reads `$I`, `$$` and `?`, and checks identity, `$30`, `$32` and Idle status. It does not automatically home or modify firmware settings. Inspect the console if connection fails.
-5. Verify the machine's origin, positive axis directions, work offsets and usable 100 × 100 mm coordinate range. Enter the plate's lower-left X/Y position. The default is X=10, Y=30, placing the plate centrally in the assumed workspace.
-6. Confirm coordinate setup, then use **Frame — Laser Off** to trace the plate boundary. This is real movement with the laser off.
-7. Generate a new preview, select test settings, confirm the scrap-material test and explicitly choose **Engrave Plate**.
+4. The app uses 115200 baud, reads `$I`, `$$` and `?`, and checks identity, `$30`, `$32`, millimeter position reporting (`$13=0`) and Idle status. It does not automatically home or modify firmware settings. Inspect the console if connection fails.
+5. For initial commissioning, with clear travel, use **X +2 mm** and then **Y +2 mm** one at a time. Each check makes one 2 mm positive-axis move at 120 mm/min with the laser forced off. Confirm X moves right and Y toward the back before continuing. The app checks the starting position has not changed and logs the final position. These checks do not home the machine.
+6. Verify the machine's origin, positive axis directions, work offsets and usable 100 × 100 mm coordinate range. Enter the plate's lower-left X/Y position. The default is X=10, Y=30, placing the plate centrally in the assumed workspace.
+7. Confirm coordinate setup, then use **Frame — Laser Off** to trace the plate boundary. This is real movement with the laser off.
+8. Generate a new preview, select test settings, confirm the scrap-material test and explicitly choose **Engrave Plate**.
 
 Coordinate commissioning is essential: generated moves use the controller's current work coordinate system. This first version does not provide homing, jogging, alarm unlocking or automatic coordinate setup. If the controller's coordinate range differs from the assumed positive workspace, do not start; establish a verified work origin using the manufacturer's supported workflow first.
 
