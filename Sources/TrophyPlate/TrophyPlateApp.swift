@@ -70,12 +70,12 @@ struct EditorView: View {
                             numeric("Line gap (mm)",value:$model.design.lineSpacing)
                             numeric("Margins (mm)",value:$model.design.margin)
                         }
-                        Section("Engraving — settings untested") {
+                        Section(model.design.usesOwnerTestedSettings ? "Engraving — your tested plate settings":"Engraving — custom settings") {
                             numeric("Power (%)",value:$model.design.powerPercent)
                             numeric("Speed (mm/min)",value:$model.design.speed)
                             Stepper("Passes: \(model.design.passes)",value:$model.design.passes,in:1...10)
                             numeric("Scan interval (mm)",value:$model.design.scanInterval)
-                            Text("Test on a scrap plate to establish clean coating removal. These are not calibrated material settings.").font(.caption).foregroundStyle(.secondary)
+                            Text(model.design.usesOwnerTestedSettings ? "40% at 2,000 mm/min, one pass, 0.10 mm spacing worked on your coated-metal plates. Test again for a different coating or focus setup.":"Custom settings: test on a scrap plate to establish clean coating removal.").font(.caption).foregroundStyle(.secondary)
                         }
                         Section("Board outline — separate test settings") {
                             numeric("Outline power (%)",value:$model.design.outline.powerPercent)
@@ -114,7 +114,7 @@ struct EditorView: View {
                     Text("Clear the selected distance before each check. X+ should move right; Y+ should move toward the back.").font(.caption).foregroundStyle(.secondary)
                     if !model.simulation {
                         Toggle("I verified the coordinate origin, axis directions and plate placement.",isOn:$model.originConfirmed)
-                        Toggle("I will test these power/speed settings on scrap material.",isOn:$model.materialConfirmed)
+                        Toggle("I have tested these settings on this plate material.",isOn:$model.materialConfirmed)
                         Text("Software Stop is best effort. Stay at the machine and use physical controls if needed.").font(.caption).foregroundStyle(.secondary)
                     }
                     HStack {

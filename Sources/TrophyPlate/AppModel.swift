@@ -6,7 +6,14 @@ enum PlateAction { case engrave, frame, markOutline, testX, testX10, testY }
 
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var design = PlateDesign() { didSet { job = nil; originConfirmed = false; materialConfirmed = false } }
+    @Published var design = PlateDesign() {
+        didSet {
+            guard design != oldValue else { return }
+            job = nil
+            if design.offsetX != oldValue.offsetX || design.offsetY != oldValue.offsetY { originConfirmed = false }
+            if design.powerPercent != oldValue.powerPercent || design.speed != oldValue.speed || design.passes != oldValue.passes || design.scanInterval != oldValue.scanInterval { materialConfirmed = false }
+        }
+    }
     @Published var job: EngravingJob?
     @Published var simulation = true
     @Published var ports = SerialTransport.availablePorts()
@@ -25,6 +32,11 @@ final class AppModel: ObservableObject {
     @Published var accepted = 0
     @Published var total = 0
     @Published var info: ControllerInfo?
+    private let makeTransport: (Bool, String) throws -> any LaserTransport
+    init(makeTransport: @escaping (Bool, String) throws -> any LaserTransport = { simulation, port in
+        if simulation { return SimulatedTransport() }
+        return try SerialTransport(path:port)
+    }) { self.makeTransport = makeTransport }
     private var runner: JobRunner?
     private var task: Task<Void,Never>?
     private var connectionID = UUID()
@@ -32,7 +44,7 @@ final class AppModel: ObservableObject {
     var layoutError: String? {
         do { _ = try TextLayout.make(design); return nil } catch { return error.localizedDescription }
     }
-    var coordinatesAvailable: Bool { info?.workOffset?.count == 3 && info?.workOffset?.allSatisfy(\.isFinite) == true }
+    var coordinatesAvailable: Bool { info?.workOffset?.count == 3 && info?.workOffset?.allSatisfy(\.isFinite) == true && info?.machinePosition?.count == 3 && info?.machinePosition?.allSatisfy(\.isFinite) == true }
     var canTestMovement: Bool { connected && !connecting && !busy && !generating && coordinatesAvailable && info?.machinePosition?.count == 3 && info?.machinePosition?.allSatisfy(\.isFinite) == true }
     var canStart: Bool { connected && !connecting && !busy && !generating && job != nil && (simulation || (coordinatesAvailable && originConfirmed && materialConfirmed)) }
     var placementError: String? {
@@ -57,9 +69,7 @@ final class AppModel: ObservableObject {
         let id = UUID(); connectionID = id
         Task {
             do {
-                let transport: any LaserTransport
-                if simulation { transport = SimulatedTransport() }
-                else { transport = try SerialTransport(path:selectedPort) }
+                let transport = try makeTransport(simulation,selectedPort)
                 let session = JobRunner(transport:transport)
                 runner = session
                 if !simulation { try await Task.sleep(nanoseconds:1_000_000_000) }
@@ -67,7 +77,7 @@ final class AppModel: ObservableObject {
                 guard id == connectionID else { await session.disconnect(); return }
                 info = detected; connected = true; phase = .ready
                 message = simulation ? "Simulator connected. No physical laser is controlled.":"USB controller ready. Verify coordinates before motion."
-                if !simulation && !coordinatesAvailable { message = "Connected, but no valid work offset was reported. Reconnect before commissioning motion." }
+                if !simulation && !coordinatesAvailable { message = "Connected, but no valid machine position and work offset were reported. Reconnect before commissioning motion." }
                 log("\(detected.identity)\n$30=\(detected.powerMaximum ?? 0), $32=\(detected.laserMode ? 1:0), status=\(detected.status)")
                 log("Position reports: \(detected.reportsInches == false ? "millimeters ($13=0)":"unverified")")
                 log("Machine position (MPos): \(detected.machinePosition.map { String(describing:$0) } ?? "not reported")")
@@ -137,7 +147,7 @@ final class AppModel: ObservableObject {
         let id = connectionID
         let expectedPower = selectedJob.powerMaximum
         let expectedOffset = simulation ? nil:info?.workOffset
-        let expectedPosition = action == .testX || action == .testX10 || action == .testY ? info?.machinePosition:nil
+        let expectedPosition = simulation ? nil:info?.machinePosition
         task = Task {
             do {
                 try await runner.run(lines:lines,expectedPowerMaximum:expectedPower,expectedWorkOffset:expectedOffset,expectedMachinePosition:expectedPosition,completionTimeout:seconds) { [weak self] event in
@@ -208,7 +218,7 @@ final class AppModel: ObservableObject {
         do {
             let size = try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? 0
             guard size <= 1_000_000 else { throw PlateError("Design file is too large.") }
-            design = try PlateDesign.decode(Data(contentsOf:url)); message = "Design opened."
+            design = try PlateDesign.decode(Data(contentsOf:url)); job = nil; originConfirmed = false; materialConfirmed = false; message = "Design opened."
         } catch { message = error.localizedDescription }
     }
 }

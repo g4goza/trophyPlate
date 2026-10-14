@@ -30,6 +30,9 @@ public struct PlateDesign: Codable, Equatable, Sendable {
         get { outlineSettings ?? OutlineSettings() }
         set { outlineSettings = newValue }
     }
+    public var usesOwnerTestedSettings: Bool {
+        powerPercent == 40 && speed == 2000 && passes == 1 && scanInterval == 0.1
+    }
     public init() {}
     public func validatePlacement() throws {
         guard offsetX.isFinite, offsetY.isFinite, (0...20).contains(offsetX), (0...60).contains(offsetY) else {

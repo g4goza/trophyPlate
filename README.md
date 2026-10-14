@@ -2,7 +2,7 @@
 
 A native macOS app for designing **80 × 40 mm trophy plates** with centered presenter, talk title and date text. Intended for the Genmitsu Kiosk 5 W laser and painted/coated metal blanks. Three lines, or four with an optional second title line.
 
-**Status: initial implementation. Simulation is tested; USB controller compatibility, coordinate setup and physical engraving are not yet validated.** No calibrated painted-metal power/speed presets are included.
+**Status: USB connection, axis directions, laser-off framing, board marking and coated-metal engraving have been tested on the owner’s Genmitsu Kiosk.** New designs use the owner’s tested 40% settings; other materials and focus setups need their own tests. Physical pause/stop and cable-loss acceptance remain pending.
 
 ## Requirements and build
 
@@ -40,9 +40,9 @@ The simulation acknowledges commands; it does not model laser physics or actual 
 5. For initial commissioning, with clear travel, use **X +2 mm** and then **Y +2 mm** one at a time. The **X +10 mm** option provides a more visible five-second check when there is enough clear travel. Each check makes one selected-distance positive-axis move at 120 mm/min with the laser forced off. Confirm X moves right and Y toward the back before continuing. The app checks the starting position has not changed and logs the final position. These checks do not home the machine.
 6. Verify the machine's origin, positive axis directions, work offsets and usable 100 × 100 mm coordinate range. Enter the plate's lower-left X/Y position. The default is X=10, Y=30, placing the plate centrally in the assumed workspace.
 7. Confirm coordinate setup, then use **Frame — Laser Off** to trace the plate boundary. This is real movement with the laser off.
-8. Generate a new preview, select test settings, confirm the scrap-material test and explicitly choose **Engrave Plate**.
+8. Generate a new preview, select test settings, confirm the material test and explicitly choose **Engrave Plate**.
 
-Coordinate commissioning is essential: generated moves use the controller's current work coordinate system. This first version does not provide homing, jogging, alarm unlocking or automatic coordinate setup. If the controller's coordinate range differs from the assumed positive workspace, do not start; establish a verified work origin using the manufacturer's supported workflow first.
+Coordinate commissioning is essential: generated moves use the controller's current work coordinate system. This first version provides only the small positive-axis movement checks above; it does not provide homing, free jogging, alarm unlocking or automatic coordinate setup. If the controller's coordinate range differs from the assumed positive workspace, do not start; establish a verified work origin using the manufacturer's supported workflow first.
 
 ## Mark a placement guide on the backing board
 
@@ -51,6 +51,8 @@ After verifying coordinates with **Frame — Laser Off**, remove the metal plate
 Outline power/speed have separate controls under **Board outline** (initially 10%, 2,000 mm/min, one pass; untested). They do not change the text engraving settings. Test these values for your board material rather than treating them as a calibrated wood preset. Keep the board, machine and coordinate origin fixed afterward; place each plate inside the guide. Refocus on the top of the metal plate before engraving it. If anything moves or the machine loses its coordinate reference, verify alignment again.
 
 New text designs now start at **40% power, 2,000 mm/min, one pass, 0.10 mm spacing**. The owner selected 40% after physical tests on their coated-metal blanks. Treat this as a starting setting for other coatings/materials. Existing saved designs retain their own power/speed settings; older files without outline settings load the new separate outline defaults.
+
+Text or typography edits invalidate the preview while preserving placement and material confirmations. Changing plate X/Y clears placement confirmation; changing text engraving power, speed, pass count or scan interval clears material confirmation. Opening a design or reconnecting clears both. A power cycle can reset the reported position without moving the head: re-establish placement rather than assuming the head is at physical home. Position checks cannot detect every physical disturbance, such as a shifted board.
 
 ## First physical test
 
@@ -70,4 +72,4 @@ Acknowledged commands can still be executing. The app waits for a subsequent Idl
 - `TrophyPlate`: SwiftUI editor and previews, document dialogs, commissioning checks and job controls.
 - `Tests/TrophyPlateCoreTests`: layout, overflow, numeric validation, encoding, generated bounds/laser-off travel, protocol fragmentation and job lifecycle.
 
-The generator uses metric absolute coordinates, GRBL dynamic power (`M4`), explicit mm/min feed mode (`G94`), explicit zero power for travel and `M5` at completion. Power is scaled to the controller's reported `$30`. Before each job the app compares fresh power scale and work offsets against the preview/commissioning snapshot; a change requires reconnection and a new preview. Unsupported visible symbols (including color emoji without outlines) produce an explicit error rather than disappearing. The scan interval defaults to 0.10 mm. Wi-Fi, logos, camera positioning, rotary operation and CSV batches are outside this version.
+The generator uses metric absolute coordinates, GRBL dynamic power (`M4`), explicit mm/min feed mode (`G94`), explicit zero power for travel and `M5` at completion. Power is scaled to the controller's reported `$30`. Before each physical job the app requires valid machine position and work offset reports, and compares fresh power scale, machine position and work offsets against the preview/commissioning snapshot; a change requires reconnection and a new preview. Unsupported visible symbols (including color emoji without outlines) produce an explicit error rather than disappearing. The scan interval defaults to 0.10 mm. Wi-Fi, logos, camera positioning, rotary operation and CSV batches are outside this version.
