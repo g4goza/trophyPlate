@@ -27,3 +27,13 @@ extension RunnerTests {
         } catch { XCTAssertTrue(error.localizedDescription.contains("position changed")) }
     }
 }
+extension MovementTests {
+    func testTenMillimeterStepFromCurrentPosition() throws {
+        let job = try MovementJob.generate(axis:.x,machinePosition:[2,0,0],workOffset:[0,0,0],powerMaximum:1000,distance:10)
+        XCTAssertTrue(job.lines.contains("G1 X12.000 Y0.000 F120.000 S0"))
+        XCTAssertEqual(job.estimatedSeconds,5)
+        XCTAssertFalse(job.lines.contains { $0.hasPrefix("M3") || $0.hasPrefix("M4") })
+        XCTAssertThrowsError(try MovementJob.generate(axis:.x,machinePosition:[95,0,0],workOffset:[0,0,0],powerMaximum:1000,distance:10))
+        XCTAssertThrowsError(try MovementJob.generate(axis:.x,machinePosition:[2,0,0],workOffset:[0,0,0],powerMaximum:1000,distance:.nan))
+    }
+}

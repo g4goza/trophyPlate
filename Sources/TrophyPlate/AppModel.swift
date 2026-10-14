@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import TrophyPlateCore
 
-enum PlateAction { case engrave, frame, markOutline, testX, testY }
+enum PlateAction { case engrave, frame, markOutline, testX, testX10, testY }
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -107,7 +107,7 @@ final class AppModel: ObservableObject {
         case .engrave: allowed = canStart
         case .frame: allowed = canFrame
         case .markOutline: allowed = canMarkOutline
-        case .testX, .testY: allowed = canTestMovement
+        case .testX, .testX10, .testY: allowed = canTestMovement
         }
         guard let runner, allowed else { return }
         let selectedJob: EngravingJob
@@ -115,9 +115,9 @@ final class AppModel: ObservableObject {
             switch action {
             case .engrave:
                 guard let job else { return }; selectedJob = job
-            case .testX, .testY:
+            case .testX, .testX10, .testY:
                 guard let position = info?.machinePosition, let offset = info?.workOffset else { return }
-                selectedJob = try MovementJob.generate(axis:action == .testX ? .x:.y,machinePosition:position,workOffset:offset,powerMaximum:info?.powerMaximum ?? 1000)
+                selectedJob = try MovementJob.generate(axis:action == .testY ? .y:.x,machinePosition:position,workOffset:offset,powerMaximum:info?.powerMaximum ?? 1000,distance:action == .testX10 ? 10:2)
             case .frame, .markOutline:
                 selectedJob = try PlacementJob.generate(design:design,mode:action == .frame ? .laserOff:.mark,powerMaximum:info?.powerMaximum ?? 1000)
                 showOutline = true
@@ -127,6 +127,7 @@ final class AppModel: ObservableObject {
         let seconds = max(300,selectedJob.estimatedSeconds*4+120)
         busy = true; phase = .ready; accepted = 0; total = lines.count
         switch action {
+        case .testX10: message = "Moving X +10 mm at 120 mm/min — laser off…"
         case .testX: message = "Moving X +2 mm at 120 mm/min — laser off…"
         case .testY: message = "Moving Y +2 mm at 120 mm/min — laser off…"
         case .frame: message = "Tracing plate boundary with laser off…"
@@ -136,7 +137,7 @@ final class AppModel: ObservableObject {
         let id = connectionID
         let expectedPower = selectedJob.powerMaximum
         let expectedOffset = simulation ? nil:info?.workOffset
-        let expectedPosition = action == .testX || action == .testY ? info?.machinePosition:nil
+        let expectedPosition = action == .testX || action == .testX10 || action == .testY ? info?.machinePosition:nil
         task = Task {
             do {
                 try await runner.run(lines:lines,expectedPowerMaximum:expectedPower,expectedWorkOffset:expectedOffset,expectedMachinePosition:expectedPosition,completionTimeout:seconds) { [weak self] event in
@@ -157,7 +158,7 @@ final class AppModel: ObservableObject {
                     if state.phase == .completed {
                         if simulation { message = "Simulation complete." }
                         else if action == .markOutline { message = "Outline job complete. Keep the board and coordinate origin fixed when placing plates." }
-                        else if action == .testX || action == .testY { message = "2 mm movement complete — laser off. Confirm the physical direction before continuing." }
+                        else if action == .testX || action == .testX10 || action == .testY { message = "Movement check complete — laser off. Confirm the physical direction before continuing." }
                         else { message = "Controller reports Idle — job complete." }
                         let refreshed = try await runner.inspect()
                         guard id == connectionID else { return }

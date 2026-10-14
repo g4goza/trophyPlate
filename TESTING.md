@@ -1,13 +1,13 @@
 # Validation
 
-Run `swift test --disable-sandbox` on macOS. Current suite: **33 tests**.
+Run `swift test --disable-sandbox` on macOS. Current suite: **34 tests**.
 
 | Test group | Count | Coverage |
 | --- | ---: | --- |
 | LayoutTests | 5 | 3/4 lines, visible centering, Unicode, unsupported glyph rejection, overflow, JSON round trip, invalid settings/schema |
 | EngravingTests | 4 | Workspace bounds, laser-off travel/completion, explicit G94, raster orientation, power/feed validation, alternating scan rows and passes |
 | PlacementTests | 5 | Approved text defaults, closed 80 × 40 mm rectangle, independent outline power, laser-off framing, bounds/numeric rejection, old-file compatibility |
-| MovementTests | 3 | Slow 2 mm X/Y laser-off commands, work-position conversion, invalid/out-of-bounds rejection |
+| MovementTests | 4 | Slow 2 mm X/Y and 10 mm X laser-off commands, work-position conversion, invalid/out-of-bounds rejection |
 | ProtocolTests | 6 | Fragmented CRLF/status parsing, settings and position-report unit validation, acknowledgment flow, pause/resume, disconnect/stop/error state |
 | RunnerTests | 6 | Simulated commissioning/execution, controller error, invalid port, changed power scale, changed work offset and changed machine position |
 | JobIntegrationTests | 4 | Controlled pause with outstanding acknowledgment, stop queue suppression, acknowledgment timeout, draining until fresh Idle, delayed stale Idle rejection |
